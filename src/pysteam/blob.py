@@ -14,9 +14,10 @@ class Blob(object):
     
     def __init__(self):
         self.children = {}
+        self.ordered_children = []
         self.padding = 0
     
-    def read(self, stream, recurse=True):
+    def parse(self, stream, recurse=True):
         
         # Convert the stream if we need to.
         if isinstance(stream, Blob):
@@ -36,32 +37,38 @@ class Blob(object):
             count = 0
             while length >= 6:
                 node = BlobNode()
-                node.read(stream, recurse)
-                self.children[node.key] = node
-                self.children[count] = node
-                length -= 6 + len(node.key) + node.data_size
+                node.parse(stream, recurse)
+                self.children[node.smart_key()] = node
+                self.ordered_children.append(node)
+                length -= 6 + node.desc_size + node.data_size
                 count += 1
-
+            
             stream.seek(self.padding, os.SEEK_CUR)
             
         elif mode == Blob.COMPRESSED_MAGIC:
             # logging.debug("Compressed Blob")
             # If we are compressed, decompress and reparse.
-            compressed, = struct.unpack("<l4xl6x", stream.read(18))[0]
+            compressed, decompressed = struct.unpack("<l4xl6x", stream.read(18))
             
             # Read n bytes.
-            compressedBytes = stream.read(compressed)
-            decompressedBytes = zlib.decompress(compressedBytes)
+            compressed_bytes = stream.read(compressed)
+            self.decompressed_bytes = zlib.decompress(compressed_bytes)
         
-            self.read(StringIO(decompressedBytes), recurse)
+            self.parse(StringIO(self.decompressed_bytes), recurse)
 
     def serialize(self, compress=True):
         mode = Blob.COMPRESSED_MAGIC if compress else Blob.MAGIC
         data = StringIO()
         
+        for node in self.ordered_children:
+            data.write(node.serialize())
+        
         if compress:
-            zlib.compress(data.buf)
-        return struct.pack("<H", mode)
+            data = zlib.compress(data.getvalue())
+        else:
+            data = data.getvalue()
+        
+        return struct.pack("<H", mode) + data + ("\0" * self.padding)
     
     def __len__(self):
         return len(self.children)
@@ -69,13 +76,20 @@ class Blob(object):
     def __str__(self):
         return str(self.children)
     
+    def str_lines(self):
+        lines = ["{"]
+        for key, node in self.children.iteritems():
+            lines.append("%s: %s" % (key, str(node)))
+        lines.append("}")
+        return lines
+    
     def __iter__(self):
         return self.children.itervalues()
     
     def __getitem__(self, value):
         try:
-            return self.children[struct.pack("<l", value)]
-        except Exception:
+            return self.children[str(value)]
+        except KeyError:
             return self.children[value]
     
     def __getattr__(self, value):
@@ -89,45 +103,42 @@ class BlobNode(object):
         self.data = None
         self.data_size = 0
     
-    def read(self, stream, recurse=True):
+    def parse(self, stream, recurse=True):
         
         # These are defined internally.
-        desc_size, data_size = struct.unpack("<HL", stream.read(6))
+        self.desc_size, self.data_size = struct.unpack("<HL", stream.read(6))
         
         # If it's negative then it's a huge unsigned value..
         # Stop here, as it could crash Python.
-        if desc_size < 0 or data_size < 0:
+        if self.desc_size < 0 or self.data_size < 0:
             raise ValueError, "Numeric value too large!"
         
-        self.key = stream.read(desc_size)
+        self.key = stream.read(self.desc_size)
         
         # Get temp bytes (it appears that Valve is now trying
         # to break parsers by putting null bytes after the blob node's
         # data section) This method will use more memory and is slower
         # but allows the parser to run with more sanity.
-        tempbytes = stream.read(data_size)
+        tempbytes = stream.read(self.data_size)
         
         if recurse and len(tempbytes) >= 10:
             tempshort, = struct.unpack("<H", tempbytes[:2])
             if tempshort == Blob.MAGIC or (tempshort == Blob.COMPRESSED_MAGIC and len(tempbytes) >= 20):
                 self.child = Blob()
-                self.child.read(StringIO(tempbytes))
+                self.child.parse(StringIO(tempbytes))
                 return
         self.data = tempbytes
 
     def serialize(self):
-        desc_size = len(self.key)
         if self.child is not None:
             data = self.child.serialize(False)
-            data_size = len(data)
         else:
             data = self.data
-            data_size = len(data)
-        return struct.pack("<HL", desc_size, data_size) + self.key + data
+        return struct.pack("<HL", self.desc_size, self.data_size) + self.key + data
         
     def __len__(self):
         if self.child is not None:
-            return self.child.__len__()
+            return len(self.child)
         return len(self.data)
     
     def __getitem__(self, value):
@@ -137,7 +148,7 @@ class BlobNode(object):
     
     def __getattr__(self, value):
         if self.child is not None:
-            return self.child.__getattr__(value)
+            return getattr(self.child, value)
         raise AttributeError, value
     
     def __iter__(self):
@@ -145,10 +156,17 @@ class BlobNode(object):
             return iter(self.child)
         return iter(self.data)
     
-    def __repr__(self):
-        s = ["<", self.key]
+    def smart_key(self):
+        try:
+            return str(struct.unpack("<l", self.key)[0])
+        except struct.error:
+            return self.key
+    
+    def __str__(self):
+        s = ["<"]
         if self.child:
-            s.append(str(self.child))
-        if self.data:
+            s += ["\n  " + s for s in self.child.str_lines()]
+        elif self.data:
             s.append("Unknown Data")
-        return "".join(s) + ">"
+        s.append(">")
+        return "".join(s)

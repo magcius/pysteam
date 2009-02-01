@@ -49,6 +49,7 @@ if __name__ == "__main__":
     
     from os.path import join
     pCDR = join(settings.DATA_DIR, "CDR")
+    pCDR_D = join(settings.DATA_DIR, "CDR_decompressed")
     
     try:
         handle = open(pCDR, "rb")
@@ -67,7 +68,14 @@ if __name__ == "__main__":
     elif settings.DEBUG:
         handle = open(pCDR, "rb")
         c = CDR()
-        c.parse(handle)
+        try:
+            c.parse(handle)
+        except KeyError:
+            bytes = c.blob.serialize(False)
+            handle2 = open(pCDR_D, "wb")
+            handle2.write(bytes)
+            handle2.close()
         c.save()
+        handle.close()
     print "done"
         

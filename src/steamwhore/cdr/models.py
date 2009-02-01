@@ -13,28 +13,27 @@ class CDR(models.Model):
     version = models.IntegerField()
     last_changed = models.DateTimeField()
     
-    def read(self, stream):
+    def parse(self, stream):
         
         self.pk = 0
         
         self.version = CDR.CURRENT_VER
         self.last_changed = datetime.datetime.now()
         
-        blob = Blob()
+        self.blob = blob = Blob()
         blob.parse(stream)
         
         node = blob[0] # Version number.
+        
         if not node.data:
             logging.error("Version number invalid. [No Data]")
-            continue
         elif len(node.data) != 2:
             logging.error("Version number invalid. [Length Invalid, Got %d]" % len(node.data))
-            continue
+            
         self.version = struct.unpack("<h", node.data)[0]
         if self.version != CDR.CURRENT_VER:
             self.save()
             logging.error("Unhandled version number. Cannot continue using version number: %d" % self.version)
-            continue
         
         node = blob[2] # App Records
         if node.child is None:
@@ -50,10 +49,9 @@ class CDR(models.Model):
         node = blob[3] # LastChanged...
         if node.data is None:
             logging.error("LastChangedExistingAppOrSubscriptionTime number invalid. [No Data]")
-            continue
         elif len(node.data) != 8:
             logging.error("LastChangedExistingAppOrSubscriptionTime number invalid [Length Invalid, Got %d]" % len(node.data))
-            continue
+        
         self.last_changed = py_time(struct.unpack("<q", node.data)[0])
         self.save()
 
@@ -96,7 +94,7 @@ class Application(models.Model):
             return self.app_name + (".ncf" if self.is_ncf() else ".gcf")
         return self.app_name
     
-    def read(self, node):
+    def parse(self, node):
         
         self.app_name = ""
         self.install_dir = ""
@@ -115,8 +113,8 @@ class Application(models.Model):
         
         if len(node.children) == 0:
             raise ValueError, "Blob has no children"
-        self.app_id = struct.unpack("<l", node.key)[0]
         
+        self.app_id = node.smart_key()
         self.app_name = node[2].data
         self.install_dir = node[3].data
         self.min_cache, = struct.unpack("<l", node[4].data)
@@ -139,25 +137,25 @@ class Application(models.Model):
         for n in node[6]:
             tempblob = ApplicationLaunchOptionRecord()
             tempblob.owner = self
-            tempblob.read(n)
+            tempblob.parse(n)
             tempblob.save()
         
         for n in node[10]:
             tempblob = ApplicationVersionRecord()
             tempblob.owner = self
-            tempblob.read(n)
+            tempblob.parse(n)
             tempblob.save()
             
         for n in node[12]:
             tempblob = ApplicationFilesystemRecord()
             tempblob.owner = self
-            tempblob.read(n)
+            tempblob.parse(n)
             tempblob.save()
             
         for n in node[14]:
             tempblob = ApplicationUserDefinedRecord()
             tempblob.owner = self
-            tempblob.read(n)
+            tempblob.parse(n)
             tempblob.save()
                         
 
@@ -175,7 +173,7 @@ class ApplicationLaunchOptionRecord(models.Model):
     def __unicode__(self):
         return "%s's Launch Option Record %d" % (unicode(self.owner), self.option_id)
     
-    def read(self, node):
+    def parse(self, node):
         
         self.option_id = 0
         self.description = ""
@@ -202,7 +200,7 @@ class ApplicationLaunchOptionRecord(models.Model):
         self.icon_index = node[3].data
         self.no_desktop_shortcut = bytes_as_bool(node[4].data)
         self.no_start_menu_shortcut = bytes_as_bool(node[5].data)
-        self.long_running_unattended = bytes_as_bool(node[6].data)
+        self.long_running_unattended = bytes_as_bool(node[6].data)    
 
 class ApplicationVersionRecord(models.Model):
     
@@ -218,7 +216,8 @@ class ApplicationVersionRecord(models.Model):
     
     def __unicode__(self):
         return "%s's Version Record %d" % (unicode(self.owner), self.version_id)
-    def read(self, node):
+    
+    def parse(self, node):
         
         self.version_id = 0
         self.description = ""
@@ -252,7 +251,7 @@ class ApplicationVersionRecord(models.Model):
         for n in node[4]:
             tempblob = ApplicationVersionLaunchRecord()
             tempblob.owner = self
-            tempblob.read(n)
+            tempblob.parse(n)
             tempblob.save()
 
 class ApplicationVersionLaunchRecord(models.Model):
@@ -282,7 +281,7 @@ class ApplicationFilesystemRecord(models.Model):
     def __unicode__(self):
         return "%s: Cache import: %s" % (unicode(self.owner), self.get_mount_name())
     
-    def read(self, node):
+    def parse(self, node):
         
         self.app_id = 0
         self.mount_name = ""
@@ -307,6 +306,6 @@ class ApplicationUserDefinedRecord(models.Model):
     def __unicode__(self):
         return "%s: User Defined Record" % unicode(self.owner)
     
-    def read(self, node):
+    def parse(self, node):
         self.key = node.key
         self.data = node.data
