@@ -1,5 +1,5 @@
 
-import struct, sys
+import struct, sys, os
 
 from pysteam.fs import DirectoryFolder, DirectoryFile, FilesystemPackage
 from math import ceil
@@ -52,7 +52,7 @@ class CacheFile(object):
     
     def __del__(self):
         del self.is_parsed
-        del self.blocksFilesystemPackage
+        del self.blocks
         del self.alloc_table
         del self.manifest
         del self.checksum_map
@@ -61,9 +61,8 @@ class CacheFile(object):
     
     # Main methods.
     
-    def read(self, stream):
-
-        import os
+    def parse(self, stream):
+        
         try:
             self.filename = os.path.split(os.path.realpath(stream.name))[1]
         except AttributeError:
@@ -71,35 +70,35 @@ class CacheFile(object):
         
         # Header
         self.header = CacheFileHeader(self)
-        self.header.read(stream.read(44))
+        self.header.parse(stream.parse(44))
         self.header.validate()
         
         if self.is_gcf():
             
             # Block Entries
             self.blocks = CacheFileBlockAllocationTable(self)
-            self.blocks.read(stream)
+            self.blocks.parse(stream)
             self.blocks.validate()
             
             # Allocation Table
             self.alloc_table = CacheFileAllocationTable(self)
-            self.alloc_table.read(stream)
+            self.alloc_table.parse(stream)
             self.alloc_table.validate()
         
         # Manifest
         self.manifest = CacheFileManifest(self)
-        self.manifest.read(stream)
+        self.manifest.parse(stream)
         self.manifest.validate()
         
         # Checksum Map
         self.checksum_map = CacheFileChecksumMap(self)
-        self.checksum_map.read(stream)
+        self.checksum_map.parse(stream)
         self.checksum_map.validate()
         
         if self.is_gcf():
             # Data Header.
             self.data_header = CacheFileSectorHeader(self)
-            self.data_header.read(stream.read(24)) # size of BlockDataHeader (6 longs)
+            self.data_header.parse(stream.read(24)) # size of BlockDataHeader (6 longs)
             self.data_header.validate()
             
             # Read Sector Data.
@@ -110,34 +109,37 @@ class CacheFile(object):
         self.is_parsed = True
         self.__read_directory()
     
-    def write(self, stream):
+    def serialize(self):
+        
+        stream = StringIO()
         
         self.header.validate()
-        self.header.write(stream)
+        stream.write(self.header.serialize())
         
         if self.is_gcf():
             
             self.blocks.validate()
-            self.blocks.write(stream)
+            stream.write(self.blocks.serialize())
             
             self.alloc_table.validate()
-            self.alloc_table.write(stream)
+            stream.write(self.alloc_table.serialize())
         
         self.directory.validate()
-        self.directory.write(stream)
+        stream.write(self.directory.serialize())
         
         self.checksum_map.validate()
-        self.checksum_map.write(stream)
+        stream.write(self.checksum_map.serialize())
         
         if self.is_gcf():
             
             self.data_header.validate()
-            self.data_header.write(stream)
+            stream.write(self.data_header.serialize())
             
-            import os
             stream.seek(self.data_header.first_sector_offset, os.SEEK_SET)
             for data in self.sector_data:
                 stream.write(data)
+        
+        return stream
     
     
     # Private Methods
@@ -146,7 +148,7 @@ class CacheFile(object):
 
         if self.is_ncf():
             # Make NCF files "readable" by a configurable folder much like Steam's "common" folder
-            import os
+            
             path = self.ncf_folder_pattern.replace("/", os.sep)
             if ("{NAME}" in path or "{FILE}" in path) and not hasattr(self, "filename"):
                 raise ValueError, "NCF folder path has {NAME} or {FILE} but filename couldn't be figured out. Please set manually."
@@ -156,7 +158,7 @@ class CacheFile(object):
             
             package = FilesystemPackage()
             package.dot_replacement = self.dot_replacement
-            package.read(path)
+            package.parse(path)
         
         elif self.is_gcf():
             package = self
@@ -293,7 +295,6 @@ class CacheFile(object):
         
         if keep_folder_structure:
             try:
-                import os
                 os.makedirs(os.path.join(where, folder.sys_path()))
             except Exception:
                 pass
@@ -309,7 +310,6 @@ class CacheFile(object):
     @raise_parse_error
     @raise_ncf_error
     def _extract_file(self, file, where, keep_folder_structure):
-        import os
         if keep_folder_structure:
             fsHandle = open(os.path.join(where, file.sys_path()), "wb")
         else:
@@ -321,7 +321,6 @@ class CacheFile(object):
         fsHandle.close()
     
     # Public Methods
-    
     def is_ncf(self):
         return self.header.is_ncf()
     
@@ -341,7 +340,6 @@ class CacheFile(object):
     @raise_parse_error
     @raise_ncf_error
     def extract_minimum_footprint(self, where, keep_folder_structure=True):
-        import os
         self._extract_folder(self.root, where, True, keep_folder_structure, lambda x:x.is_minimum_footprint and not (os.path.exists(os.path.join(where, x.find_path())) and x.is_user_config))
     
     def open(self, filename, mode):
@@ -373,7 +371,7 @@ class CacheFileHeader(object):
     
     def __init__(self, owner):
         self.owner = owner
-    def read(self, data):
+    def parse(self, data):
         (self.header_version,
          self.cache_type,
          self.format_version,
@@ -386,17 +384,14 @@ class CacheFileHeader(object):
          self.sector_count,
          self.checksum) = struct.unpack("<11L", data)
     
-    def write(self, stream):
-        stream.write(self.serialize())
-    
     def serialize(self):
-        data = struct.pack("<11L", self.header_version, self.cache_type, self.format_version, self.application_id, self.application_version, self.is_mounted, self.dummy1, self.file_size, self.sector_size, self.sector_count)
+        data = struct.pack("<10L", self.header_version, self.cache_type, self.format_version, self.application_id, self.application_version, self.is_mounted, self.dummy1, self.file_size, self.sector_size, self.sector_count)
         self.checksum = sum(ord(x) for x in data)
         return data + struct.pack("<L", self.checksum)
     
     def calculate_checksum(self):
         # Calculate Checksum..
-        return sum(ord(x) for x in self.serialize()[:-4])
+        return struct.unpack("<L", self.serialize()[-4:0])
     
     def validate(self):
         # Check the usual stuff.
@@ -425,7 +420,7 @@ class CacheFileHeader(object):
         return self.cache_type == 2
     def is_gcf(self):
         return self.cache_type == 1
-    def blocks_length(self):
+    def get_blocks_length(self):
         return self.block_size * self.block_count + 32 # Block Size * Block Count + Block Header
 
 class CacheFileBlockAllocationTable(object):
@@ -434,7 +429,7 @@ class CacheFileBlockAllocationTable(object):
         self.owner = owner
         self.blocks = []
     
-    def read(self, stream):
+    def parse(self, stream):
         
         # Blocks Header
         (self.block_count,
@@ -450,17 +445,13 @@ class CacheFileBlockAllocationTable(object):
         for i in xrange(self.block_count):
             block = CacheFileBlockAllocationTableEntry(self)
             block.index = i
-            block.read(stream)
+            block.parse(stream)
             self.blocks.append(block)
-    
-    def write(self, stream):
-        stream.write(self.serialize())
     
     def serialize(self):
         data = struct.pack("<7L", self.block_count, self.blocks_used, self.last_block_used, self.dummy1, self.dummy2, self.dummy3, self.dummy4)
         self.checksum = sum(ord(x) for x in data)
-        
-        return data + struct.pack("<L", self.checksum) + "".join([x.serialize for x in self.blocks])
+        return data + struct.pack("<L", self.checksum) + "".join(x.serialize for x in self.blocks)
     
     def calculate_checksum(self):
         return sum(ord(x) for x in self.serialize()[:-4])
@@ -484,7 +475,7 @@ class CacheFileBlockAllocationTableEntry(object):
     def __init__(self, owner):
         self.owner = owner
     
-    def read(self, stream):
+    def parse(self, stream):
         # Block Entry
         (self.flags,
          self.dummy1,
@@ -540,9 +531,6 @@ class CacheFileBlockAllocationTableEntry(object):
     def __set_first_sector(self, value):
         self._first_sector_index = value.index
     
-    def write(self, stream):
-        stream.write(self.serialize())
-    
     def serialize(self):
         return struct.pack("<2H6L", self.flags, self.dummy1, self.file_data_offset, self.file_data_size, self._first_sector_index, self._next_block_index, self._previous_block_index, self.manifest_index)
         
@@ -564,7 +552,7 @@ class CacheFileAllocationTable(object):
     def __iter__(self):
         return self.entries
     
-    def read(self, stream):
+    def parse(self, stream):
         
         # Block Header
         (self.sector_count,
@@ -573,9 +561,6 @@ class CacheFileAllocationTable(object):
         self.checksum = sum(ord(x) for x in stream.read(4))
         
         self.entries = unpack_dword_list(self.sector_count, stream)
-    
-    def write(self, stream):
-        stream.write(self.serialize())
     
     def serialize(self):
         data = struct.pack("<3L", self.block_count, self.first_unused_entry, self.terminator)
@@ -614,7 +599,7 @@ class CacheFileManifest(object):
         # Contains FirstBlockIndex
         self.manifest_map_entries = []
     
-    def read(self, stream):
+    def parse(self, stream):
         # Header
         self.header_data = stream.read(56)
         (self.header_version,
@@ -641,7 +626,7 @@ class CacheFileManifest(object):
             entry.index = i
             # 28 = size of ManifestEntry
             data = self.manifest_stream.read(28)
-            entry.read(data)
+            entry.parse(data)
             self.manifest_entries.append(entry)
             if (entry.directory_flags & CacheFileManifestEntry.FLAG_IS_FILE) != 0:
                 self.owner.complete_total += entry.item_size
@@ -667,9 +652,6 @@ class CacheFileManifest(object):
         
         # Manifest Map Entries (FirstBlockIndex)
         self.manifest_map_entries = [self.blocks[i] for i in unpack_dword_list(stream, self.item_count)]
-    
-    def write(self, stream):
-        return stream.write(self.serialize())
     
     def serialize(self):
         # 56 = size of Header
@@ -757,7 +739,7 @@ class CacheFileManifestEntry(object):
     def __set_first_block(self, value):
         self.owner.manifest_map_entries[self.index] = value
     
-    def read(self, data):
+    def parse(self, data):
         (self.name_offset,
          self.item_size,
          self.checksum_index,
@@ -783,7 +765,7 @@ class CacheFileChecksumMap(object):
         # Contains Checksum
         self.checksums = []
     
-    def read(self, stream):
+    def parse(self, stream):
         
         (self.header_version,
          self.checksum_size,
@@ -798,9 +780,6 @@ class CacheFileChecksumMap(object):
         self.checksums = unpack_dword_list(stream, self.checksum_count)
         
         self.signature = stream.read(128)
-    
-    def write(self, stream):
-        stream.write(self.serialize())
     
     def serialize(self):
         data = [struct.pack("<6L", self.header_version, self.checksum_size, self.format_code, self.version, self.file_id_count, self.checksum_count)]
@@ -820,7 +799,7 @@ class CacheFileSectorHeader(object):
     def __init__(self, owner):
         self.owner = owner
     
-    def read(self, data):
+    def parse(self, data):
         (self.application_version,
          self.sector_count,
          self.sector_size,
@@ -828,8 +807,6 @@ class CacheFileSectorHeader(object):
          self.sectors_used,
          self.checksum) = struct.unpack("<6L", data)
     
-    def write(self, stream):
-        stream.write(self.serialize())
     
     def serialize(self):
         self.checksum = self.calculate_checksum()
@@ -857,12 +834,6 @@ class CacheFileSector(object):
         self.index = index
         self.data = data
         self._next_index = self.owner.alloc_table[index]
-    
-    def __get_data(self):
-        return self.data
-    
-    def __set_data(self, value):
-        self.data = value
     
     def __get_next_sector(self):
         return self.owner.sector_data[self._next_index]
@@ -929,8 +900,6 @@ class GCFFileStream(object):
         return self.position
     
     def seek(self, offset, origin=None):
-        
-        import os
         
         def err():
             raise IOError, "Attempting to seek past end of file"
@@ -1057,7 +1026,6 @@ class GCFFileStream(object):
         return data
     
     def write(self, data):
-        
         pass
     
     def is_binary_mode(self):

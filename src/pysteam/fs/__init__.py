@@ -1,8 +1,9 @@
 
+import os
 
 class MagicNode(object):
-    def __init__(self, map):
-        self.map = {}
+    def __init__(self, map = {}):
+        self.map = map
     
     def __getattr__(self, name):
         return self.map[name]
@@ -65,8 +66,8 @@ class DirectoryFolder(object):
         self.name = ""
     
     def __getattr__(self, name):
-        # gcf.folder1.folder2.file.txt
-        # gcf.folder1.folder2.file(dot_replacement)txt
+        # folder1.folder2.file.txt
+        # folder1.folder2.file(dot_replacement)txt
         try:
             return self.items[name]
         except KeyError:
@@ -74,7 +75,7 @@ class DirectoryFolder(object):
         
     def __getitem__(self, name):
         try:
-            # gcf["folder1"]["folder2"]["file.txt"]
+            # folder1["folder2"]["file.txt"]
             return self.items[name]
         except KeyError:
             # folder1["folder2\\file.txt"]
@@ -123,7 +124,7 @@ class DirectoryFolder(object):
         
         # If we start with the path separator, remove it.
         if str(name).startswith(self.package._path_sep()):
-            name = str(name)[1:]
+            name = str(name)[len(self.package._path_sep()):]
         
         name = self.package._split_path(name)
         
@@ -163,15 +164,23 @@ class DirectoryFolder(object):
                 # Use setdefault in case there is another
                 # file, e.g "readme.gz"
                 # Put it into our items map.
-                self.items.setdefault(name[0], MagicNode({}))
-                magic = self.items[name[0]]
+
+                # If we already have a folder with the same name as a file part, then
+                # make a MagicNode and make all items in that folder point to their
+                # corresponding items in that folder.
+                if name[0] in self.items and self.items[name[0]].is_folder():
+                    folder = self.items[name[0]]
+                    magic = self.items[name[0]] = MagicNode(folder.items)
+                else:
+                    self.items.setdefault(name[0], MagicNode())
+                    magic = self.items[name[0]]
                 
                 # Loop through everything but the first and last, these are
                 # the head and tail, respectively. 
                 for piece in name[1:-1]:
                     
                     # Make more magic nodes.
-                    magic.map.setdefault(piece, MagicNode({}))
+                    magic.map.setdefault(piece, MagicNode())
                     magic = magic[piece]
                 
                 #if name[-1] in magic:
@@ -187,14 +196,12 @@ class DirectoryFolder(object):
                 value.build_split_map()
             except AttributeError: pass
 
-import os
-
 class FilesystemPackage(object):
     
     def __init__(self):
         self.dot_replacement = "."
     
-    def read(self, dirname):
+    def parse(self, dirname):
         rootpath = os.path.realpath(dirname)
         gen = os.walk(dirname)
         gen.next()
