@@ -202,9 +202,8 @@ class FilesystemPackage(object):
         self.dot_replacement = "."
     
     def parse(self, dirname):
-        rootpath = os.path.realpath(dirname)
-        gen = os.walk(dirname)
-        gen.next()
+        rootpath = os.path.abspath(dirname)
+        gen = os.walk(rootpath)
         self.root = DirectoryFolder(self)
         self.root.package = self
         self.root.name = rootpath
@@ -212,21 +211,24 @@ class FilesystemPackage(object):
         
         for path, dirs, files in gen:
             owner_key, name = os.path.split(path)
-            owner = map[owner_key]
+            if owner_key in map:
+                owner = map[owner_key]
+            else:
+                owner = self.root
             
             entry = DirectoryFolder(owner)
             entry.package = self
             entry.name = name
             
-            owner.items[owner_key + name] = entry
-            map[name] = entry
+            owner.items[name] = entry
+            map[path] = entry
             
             for filename in files:
                 file = DirectoryFile(entry)
                 file.name = filename
                 file.package = self
                 entry.items[filename] = file
-        
+            
         self.root.build_split_map()
     
     def _path_sep(self):
