@@ -82,7 +82,7 @@ class DirectoryFolder(object):
             return self.find_item(name)
         
     def __iter__(self):
-        return self.items.itervalues()
+        return self.items_nomagic.itervalues()
     
     def __len__(self):
         return len(self.items)
@@ -150,8 +150,9 @@ class DirectoryFolder(object):
     def build_split_map(self):
 
         self.dot_replacement = self.package.dot_replacement
+        self.items_nomagic = self.items.copy()
         
-        for key, value in self.items.copy().iteritems():
+        for key, value in self.items_nomagic.iteritems():
             
             # Special case for "." as dot_replacement, as
             # "." has a special use in Python.
@@ -170,7 +171,7 @@ class DirectoryFolder(object):
                 # corresponding items in that folder.
                 if name[0] in self.items and self.items[name[0]].is_folder():
                     folder = self.items[name[0]]
-                    magic = self.items[name[0]] = MagicNode(folder.items)
+                    magic = self.items[name[0]] = MagicNode(folder.items.copy())
                 else:
                     self.items.setdefault(name[0], MagicNode())
                     magic = self.items[name[0]]
@@ -178,7 +179,6 @@ class DirectoryFolder(object):
                 # Loop through everything but the first and last, these are
                 # the head and tail, respectively. 
                 for piece in name[1:-1]:
-                    
                     # Make more magic nodes.
                     magic.map.setdefault(piece, MagicNode())
                     magic = magic[piece]

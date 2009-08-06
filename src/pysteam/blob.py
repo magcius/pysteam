@@ -79,7 +79,7 @@ class Blob(object):
     def str_lines(self):
         lines = ["{"]
         for key, node in self.children.iteritems():
-            lines.append("%s: %s" % (key, str(node)))
+            lines.append("'%s': %s" % (key, str(node)))
         lines.append("}")
         return lines
     
@@ -155,7 +155,8 @@ class BlobNode(object):
         if self.child is not None:
             return iter(self.child)
         return iter(self.data)
-    
+
+    @property
     def smart_key(self):
         try:
             return str(struct.unpack("<l", self.key)[0])

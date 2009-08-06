@@ -1,5 +1,4 @@
 import setup_django, hashlib
-from django.conf import settings
 from steamwhore.cdr.models import CDR
 from steamwhore.util import ImpSocket, decode_host
 
