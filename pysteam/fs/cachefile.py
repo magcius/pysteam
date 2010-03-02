@@ -12,6 +12,8 @@ from cStringIO import StringIO
 
 STEAM_TERMINATOR = "\\" # Hasta la vista, baby.
 
+MAX_FILENAME = 0
+
 def unpack_dword_list(stream, count):
     return list(struct.unpack("<%dL" % count, stream.read(count*4)))
 
@@ -46,7 +48,6 @@ class CacheFile(object):
         self.data_header = None
         self.complete_total = 0
         self.complete_available = 0
-        self.sector_data = []
         self.dot_replacement = "."
         self.ncf_folder_pattern = "common/{NAME}"
     
@@ -57,7 +58,6 @@ class CacheFile(object):
         del self.manifest
         del self.checksum_map
         del self.data_header
-        del self.sector_data
     
     # Main methods.
 
@@ -106,17 +106,8 @@ class CacheFile(object):
             self.data_header = CacheFileSectorHeader(self)
             self.data_header.parse(stream.read(24)) # size of BlockDataHeader (6 longs)
             self.data_header.validate()
-            
-            # Read Sector Data.
-            stream.seek(self.data_header.first_sector_offset, os.SEEK_SET)
-            position = stream.tell()
-            size = self.data_header.sector_size
-            for i in xrange(self.data_header.sector_count):
-                sys.stdout.write("\rReading Sector Data "+str(float(i)/self.data_header.sector_count))
-                self.sector_data.append(CacheFileSector(self, position, i))
-                position += size
-
-        print "\nReading Directory Table"
+        
+        print "Reading Directory Table"
         self.is_parsed = True
         self._read_directory()
         return self
@@ -316,7 +307,10 @@ class CacheFile(object):
     @raise_parse_error
     @raise_ncf_error
     def _extract_file(self, file, where, keep_folder_structure):
-        print "\rExtracting %r..." % (file.sys_path(),),
+        global MAX_FILENAME
+        output = "\rExtracting %r..." % (file.sys_path(),)
+        MAX_FILENAME = max(len(output), MAX_FILENAME)
+        print output, " "*(MAX_FILENAME-len(output)),
         if keep_folder_structure:
             fsHandle = open(os.path.join(where, file.sys_path()), "wb")
         else:
@@ -530,7 +524,7 @@ class CacheFileBlockAllocationTableEntry(object):
             value._next_block_index = self.index
     
     def _get_first_sector(self):
-        return self.owner.owner.sector_data[self._first_sector_index]
+        return CacheFileSector(self, self._first_sector_index)
     
     def _set_first_sector(self, value):
         self._first_sector_index = value.inde
@@ -842,23 +836,24 @@ class CacheFileSectorHeader(object):
 
 class CacheFileSector(object):
     
-    def __init__(self, owner, start, index):
+    def __init__(self, owner, index):
         self.owner = owner
+        self.cache = owner.owner.owner
         self.index = index
-        self.start = start
-        self._next_index = self.owner.alloc_table[index]
+        self._next_index = self.cache.alloc_table[index]
     
     def _get_next_sector(self):
-        if self._next_index == self.owner.alloc_table.terminator:
+        if self._next_index == self.cache.alloc_table.terminator:
             return None
-        return self.owner.sector_data[self._next_index]
+        return CacheFileSector(self.owner, self._next_index)
     
     def _set_next_sector(self, value):
-        self._next_index = value.inde
+        self._next_index = value.index
 
     def get_data(self):
-        self.owner.stream.seek(self.start, os.SEEK_SET)
-        return self.owner.stream.read(self.owner.header.sector_size)
+        size = self.cache.data_header.sector_size
+        self.cache.stream.seek(self.cache.data_header.first_sector_offset + size*self.index, os.SEEK_SET)
+        return self.cache.stream.read(size)
    
     next_sector = property(_get_next_sector, _set_next_sector)
 
@@ -871,7 +866,6 @@ class CacheFileSectorIterator(object):
         while self.current_sector is not None:
             yield self.current_sector
             self.current_sector = self.current_sector.next_sector
-
 
 class CacheFileBlockIterator(object):
     
@@ -989,9 +983,9 @@ class GCFFileStream(object):
             raise AttributeError, "Cannot read from file with current mode"
         
         sector_size = self.owner.data_header.sector_size
-        sector_index = self.position / sector_size 
+        sector_index, offset = divmod(self.position, sector_size)
         
-        if len(self.sectors) == 0:
+        if not self.sectors:
             return ""
         
         # Raise an error if we read past end of file.
@@ -1005,15 +999,13 @@ class GCFFileStream(object):
         # Strings are immutable... use a list.
         data = []
         
-        # This block is or is part of a file.
-        # Get the virtual block offset.
-        offset = self.position % sector_size
-        
         if size < 1:
-            
+
+            size = self.entry.item_size
             # Get all the data by looping over the sectors.
             for sector in self.sectors[sector_index:]:
-                data.append(sector[offset:])
+                data.append(sector[offset:min(sector_size, size)])
+                size -= sector_size
                 offset = 0
             
         else:
