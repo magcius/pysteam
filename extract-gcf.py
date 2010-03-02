@@ -8,9 +8,7 @@ parser.add_option("-o", "--output", dest="output", help="Output directory for ex
 options, args = parser.parse_args()
 
 cacheHandle = open(args[0],"rb")
-cacheFile = CacheFile()
-cacheFile.parse(cacheHandle)
-cacheHandle.close()
+cacheFile = CacheFile.parse(cacheHandle)
 
 import os.path
 if options.minimum:

@@ -60,15 +60,21 @@ class CacheFile(object):
         del self.sector_data
     
     # Main methods.
-    
-    def parse(self, stream):
+
+    @classmethod
+    def parse(cls, stream):
+
+        self = cls()
         
         try:
             self.filename = os.path.split(os.path.realpath(stream.name))[1]
         except AttributeError:
             pass
+
+        print "Parsing"
         
         # Header
+        self.stream = stream
         self.header = CacheFileHeader(self)
         self.header.parse(stream.read(44))
         self.header.validate()
@@ -103,43 +109,49 @@ class CacheFile(object):
             
             # Read Sector Data.
             stream.seek(self.data_header.first_sector_offset, os.SEEK_SET)
+            position = stream.tell()
+            size = self.data_header.sector_size
             for i in xrange(self.data_header.sector_count):
-                self.sector_data.append(CacheFileSector(self, stream.read(self.data_header.sector_size), i))
-        
+                sys.stdout.write("\rReading Sector Data "+str(float(i)/self.data_header.sector_count))
+                self.sector_data.append(CacheFileSector(self, position, i))
+                position += size
+
+        print "\nReading Directory Table"
         self.is_parsed = True
         self._read_directory()
+        return self
     
-    def serialize(self):
+    ## def serialize(self):
         
-        stream = StringIO()
+    ##     stream = StringIO()
         
-        self.header.validate()
-        stream.write(self.header.serialize())
+    ##     self.header.validate()
+    ##     stream.write(self.header.serialize())
         
-        if self.is_gcf():
+    ##     if self.is_gcf():
             
-            self.blocks.validate()
-            stream.write(self.blocks.serialize())
+    ##         self.blocks.validate()
+    ##         stream.write(self.blocks.serialize())
             
-            self.alloc_table.validate()
-            stream.write(self.alloc_table.serialize())
+    ##         self.alloc_table.validate()
+    ##         stream.write(self.alloc_table.serialize())
         
-        self.manifest.validate()
-        stream.write(self.manifest.serialize())
+    ##     self.manifest.validate()
+    ##     stream.write(self.manifest.serialize())
         
-        self.checksum_map.validate()
-        stream.write(self.checksum_map.serialize())
+    ##     self.checksum_map.validate()
+    ##     stream.write(self.checksum_map.serialize())
         
-        if self.is_gcf():
+    ##     if self.is_gcf():
             
-            self.data_header.validate()
-            stream.write(self.data_header.serialize())
+    ##         self.data_header.validate()
+    ##         stream.write(self.data_header.serialize())
             
-            stream.seek(self.data_header.first_sector_offset, os.SEEK_SET)
-            for data in self.sector_data:
-                stream.write(data)
+    ##         stream.seek(self.data_header.first_sector_offset, os.SEEK_SET)
+    ##         for data in self.sector_data:
+    ##             stream.write(data)
         
-        return stream
+    ##     return stream
     
     
     # Private Methods
@@ -172,6 +184,7 @@ class CacheFile(object):
         self.root.name = ""
         self.root._manifest_entry = manifest_entry
         self._read_directory_table(self.root)
+        print "Building Split Map"
         self.root.build_split_map()
     
     def _read_directory_table(self, folder):
@@ -279,7 +292,6 @@ class CacheFile(object):
     @raise_parse_error
     @raise_ncf_error
     def _open_file(self, file, mode):
-        #print "Extracting %r..." % (file.sys_path(),)
         return GCFFileStream(file, self, mode)
     
     @raise_parse_error
@@ -304,6 +316,7 @@ class CacheFile(object):
     @raise_parse_error
     @raise_ncf_error
     def _extract_file(self, file, where, keep_folder_structure):
+        print "\rExtracting %r..." % (file.sys_path(),),
         if keep_folder_structure:
             fsHandle = open(os.path.join(where, file.sys_path()), "wb")
         else:
@@ -829,10 +842,10 @@ class CacheFileSectorHeader(object):
 
 class CacheFileSector(object):
     
-    def __init__(self, owner, data, index):
+    def __init__(self, owner, start, index):
         self.owner = owner
         self.index = index
-        self.data = data
+        self.start = start
         self._next_index = self.owner.alloc_table[index]
     
     def _get_next_sector(self):
@@ -842,9 +855,10 @@ class CacheFileSector(object):
     
     def _set_next_sector(self, value):
         self._next_index = value.inde
-   
-    def __getitem__(self, item):
-        return self.data.__getitem__(item)
+
+    def get_data(self):
+        self.owner.stream.seek(self.start, os.SEEK_SET)
+        return self.owner.stream.read(self.owner.header.sector_size)
    
     next_sector = property(_get_next_sector, _set_next_sector)
 
@@ -875,7 +889,7 @@ class GCFFileStream(object):
         self.entry = entry
         self.owner = owner
         self.mode = mode
-        self.sectors = list(self.entry.sectors)
+        self.sectors = [sect.get_data() for sect in self.entry.sectors]
         
         self.position = 0
     
