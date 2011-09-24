@@ -18,7 +18,7 @@ class Registry(object):
 
     def find_item(self, name):
         return self.root.find_item(name)
-    
+
     def __getattr__(self, name):
         return self.root.__getattr__(name)
     def __getitem__(self, i):
@@ -36,7 +36,7 @@ class RegistryKey(object):
         self.owner = owner
         self.registry = registry
         self.items = {}
-        
+
     def read(self, blob):
         self.name = blob.key
         for node in blob[1]: # Subkeys
@@ -53,7 +53,7 @@ class RegistryKey(object):
         pieces = name.split("/")
         piece = pieces[0]
         return self.items[piece].find_item("/".join(pieces[1:]))
-    
+
     def __getattr__(self, name):
         return self.items[name]
     def __getitem__(self, i):
@@ -70,21 +70,21 @@ class RegistryValue(object):
     TYPE_STRING = 0
     TYPE_DWORD = 1
     TYPE_BINARY = 2
-    
+
     def __init__(self, owner):
         self.owner = owner
         self.base_type = 0
 
     def find_item(self, name):
         return self
-    
+
     def read(self, blob):
 
         def clean_str(s):
             if "\0" in s:
                 return s[:s.find("\0")]
             return s
-        
+
         self.name = clean_str(blob.key)
 
         self.type, = struct.unpack("<l", blob[1].data)
