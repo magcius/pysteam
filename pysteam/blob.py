@@ -38,7 +38,7 @@ class Blob(object):
             while length >= 6:
                 node = BlobNode()
                 node.parse(stream, recurse)
-                self.children[node.smart_key()] = node
+                self.children[node.smart_key] = node
                 self.ordered_children.append(node)
                 length -= 6 + node.desc_size + node.data_size
                 count += 1
