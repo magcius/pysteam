@@ -18,24 +18,16 @@ class CDR(object):
 
         node = self.blob[0] # Version number.
 
-        if not node.data:
-            raise ParseError("Version number invalid. [No Data]")
-        elif len(node.data) != 2:
-            raise ParseError("Version number invalid. [Length Invalid, Got %d]" % len(node.data))
-
         self.version = struct.unpack("<h", node.data)[0]
         if self.version != CDR.CURRENT_VER:
             raise ParseError("Unhandled version number. Cannot continue using version number: %d" % self.version)
 
         node = self.blob[2] # App Records
-        if node.child is None:
-            logging.warning("Applications Record blob invalid. [No Blob Container]")
-        else:
-            for subnode in node.child:
-                app = Application()
-                app.cdr = self
-                app.parse(subnode)
-                self.applications.append(app)
+        for subnode in node.child:
+            app = Application()
+            app.cdr = self
+            app.parse(subnode)
+            self.applications.append(app)
 
         node = self.blob[3] # LastChanged...
         if node.data is None:
@@ -66,14 +58,7 @@ class Application(object):
             return self.app_name + (".ncf" if self.is_ncf() else ".gcf")
         return self.app_name
 
-    def parse(self, node):        
-        self.launch_records = []
-        self.version_records = []
-        self.fs_records = []
-        self.user_defined_records = []
-
-        if len(node.children) == 0:
-            raise ValueError, "Blob has no children"
+    def parse(self, node):
 
         self.app_id = node.smart_key
         self.app_name = node[2].data
@@ -91,6 +76,11 @@ class Application(object):
         self.use_filesystem_dvr = bytes_as_bool(node[19].data)
         self.manifest_only_app = bytes_as_bool(node[20].data)
         self.app_of_manifest_only_cache = bytes_as_bool(node[21].data)
+
+        self.launch_records = []
+        self.version_records = []
+        self.fs_records = []
+        self.user_defined_records = []
 
         for n in node[6]:
             tempblob = ApplicationLaunchOptionRecord()

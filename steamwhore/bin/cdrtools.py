@@ -17,7 +17,7 @@ from steamwhore.util import decode_host
 def pack_length(data):
     return struct.pack('>L', len(data)) + data
 
-def get_cdr(data="", address="gds1.steampowered.com", port=27030):
+def get_cdr(address="gds1.steampowered.com", port=27030):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((address, port))
 
@@ -65,16 +65,15 @@ if __name__ == "__main__":
 
     try:
         handle = open(pCDR, "rb")
-        data = get_cdr(handle.read())
+        data = handle.read()
         handle.close()
     except IOError:
         data = get_cdr()
 
-    if len(data) > 0:
-        handle = open(pCDR, "wb")
-        handle.write(data)
-        handle.close()
-        c = CDR()
-        c.parse(StringIO(data))
-        c.save()
-    print "done"
+    handle = open(pCDR, "wb")
+    handle.write(data)
+    handle.close()
+
+    cdr = CDR()
+    cdr.parse(StringIO(data))
+    print cdr
