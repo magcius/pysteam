@@ -5,7 +5,9 @@ import socket
 import struct
 from cStringIO import StringIO
 
-from steamwhore import settings
+import steamwhore
+DATA_DIR = os.path.join(os.path.dirname(steamwhore.__file__), "data")
+
 from steamwhore.cdr.models import CDR
 from steamwhore.util import decode_host
 
@@ -58,8 +60,8 @@ def get_cdr(data="", address="gds1.steampowered.com", port=27030):
     return None
 
 if __name__ == "__main__":
-    pCDR = os.path.join(settings.DATA_DIR, "CDR")
-    pCDR_D = os.path.join(settings.DATA_DIR, "CDR_decompressed")
+    pCDR = os.path.join(DATA_DIR, "CDR")
+    pCDR_D = os.path.join(DATA_DIR, "CDR_decompressed")
 
     try:
         handle = open(pCDR, "rb")
