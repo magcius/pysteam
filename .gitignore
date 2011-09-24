@@ -1,2 +1,8 @@
+*.pyo
 *.pyc
 *flymake*
+CDR
+CDR_decompressed
+.ropeproject
+*~
+\#*\#
