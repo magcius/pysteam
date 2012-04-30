@@ -4,5 +4,8 @@
 CDR
 CDR_decompressed
 .ropeproject
-*~
+x*~
 \#*\#
+*.gcf
+*.ncf
+*.blob
