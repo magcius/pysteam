@@ -108,12 +108,3 @@ class BlobNode(object):
         if self.child is not None:
             return iter(self.child)
         return iter(self.data)
-
-    def __str__(self):
-        s = ["<"]
-        if self.child:
-            s += ["\n  " + s for s in pprint.pformat(self.child.children)]
-        elif self.data:
-            s.append("Unknown Data")
-        s.append(">")
-        return "".join(s)
