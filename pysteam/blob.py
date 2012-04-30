@@ -75,8 +75,7 @@ class BlobNode(object):
         # These are defined internally.
         self.desc_size, self.data_size = struct.unpack("<HL", stream.read(6))
 
-        key = stream.read(4)
-        self.key, = struct.unpack("<L", key)
+        self.key = stream.read(self.desc_size)
 
         # Get temp bytes (it appears that Valve is now trying
         # to break parsers by putting null bytes after the blob node's
