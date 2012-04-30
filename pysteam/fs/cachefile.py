@@ -455,7 +455,7 @@ class CacheFileBlockAllocationTableEntry(object):
 
     def _get_prev_block(self):
         try:
-            return self.owner.blocks[self.prev_block_index]
+            return self.owner.blocks[self._prev_block_index]
         except IndexError:
             return None
 
