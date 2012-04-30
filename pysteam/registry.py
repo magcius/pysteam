@@ -101,9 +101,13 @@ class RegistryValue(object):
             else:
                 return repr(self.data)
 
-if __name__ == "__main__":
+def main():
     handle = open("ClientRegistry.blob", "rb")
     blob = Blob()
     blob.parse(handle)
     registry = Registry()
     registry.parse(blob)
+    handle.close()
+
+if __name__ == "__main__":
+    main()
