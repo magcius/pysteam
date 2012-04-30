@@ -254,7 +254,7 @@ class CacheFile(object):
         if keep_folder_structure:
             try:
                 os.makedirs(os.path.join(where, folder.sys_path()))
-            except Exception:
+            except os.error:
                 pass
 
         # Loop over the folder and extract files and folders (if recursive)
