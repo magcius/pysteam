@@ -60,8 +60,10 @@ class Blob(object):
     def __iter__(self):
         return iter(self.ordered_children)
 
-    def __getitem__(self, value):
-        return self.children[value]
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            key = struct.pack("<L", key)
+        return self.children[key]
 
 class BlobNode(object):
     def __init__(self):
