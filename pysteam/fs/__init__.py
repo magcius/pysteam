@@ -116,11 +116,11 @@ class FilesystemPackage(object):
     def _join_path(self, *args):
         return os.path.join(*args)
 
-    def _size(self, file):
-        return os.path.getsize(file.find_path())
+    def _size(self, entry):
+        return os.path.getsize(entry.sys_path())
 
-    def _open_file(self, file, mode):
-        return open(file.find_path(), mode)
+    def _open_file(self, entry, mode):
+        return open(entry.sys_path(), mode)
 
     def _extract_file(self, *a, **b):
         # Not used.
