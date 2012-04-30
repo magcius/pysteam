@@ -51,19 +51,10 @@ class CacheFile(object):
         self.complete_available = 0
         self.ncf_folder_pattern = "common/%(name)s"
 
-    def __del__(self):
-        del self.is_parsed
-        del self.blocks
-        del self.alloc_table
-        del self.manifest
-        del self.checksum_map
-        del self.data_header
-
     # Main methods.
 
     @classmethod
     def parse(cls, stream):
-
         self = cls()
 
         try:
@@ -222,9 +213,7 @@ class CacheFile(object):
 
     @raise_ncf_error
     def _merge_file_blocks(self, entry):
-
         terminator = 0xFFFFFFFF if self.alloc_table.is_long_terminator == 1 else 0xFFFF
-        deleted_blocks = []
 
         # If we are in one block, return plz.
         if not entry.first_block.next_block is not None:
@@ -242,13 +231,6 @@ class CacheFile(object):
 
             # Set the link from the last sector in the previous block to the first sector in this block.
             self.alloc_table[sector_index] = block.first_sector_index
-
-            # Set the block to be deleted later.
-            deleted_blocks.append(block)
-
-        # Delete the block.
-        for block in deleted_blocks:
-            del block
 
     # Internal methods.
 
@@ -458,16 +440,6 @@ class CacheFileBlockAllocationTableEntry(object):
          self._next_block_index,
          self._prev_block_index,
          self.manifest_index) = struct.unpack("<2H6L", stream.read(28))
-
-    def __del__(self):
-        self.flags = 0
-        self.dummy1 = 0
-        self.file_data_offset = 0
-        self.file_data_size = 0
-        self._first_sector_index = 0
-        self._next_block_index = 0
-        self._prev_block_index = 0
-        self.manifest_index = 0
 
     def _get_sector_iterator(self):
         sector = self.first_sector
