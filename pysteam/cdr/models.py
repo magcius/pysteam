@@ -1,7 +1,7 @@
 
 import datetime
 import struct
-from steamwhore.util import py_time, bytes_as_bool
+from pysteam.util import py_time, bytes_as_bool
 from pysteam.blob import Blob
 
 class ParseError(Exception):
