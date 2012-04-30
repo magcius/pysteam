@@ -1,5 +1,6 @@
 
-import time, datetime, struct
+import datetime
+import struct
 
 def bytes_as_bool(data):
     return all(x != "\0" for x in data)
@@ -19,10 +20,10 @@ def decode_host(data):
     port, = struct.unpack("<H", data[4:])
     return (ip, port)
 
-def py_time(steam_time):
-    unix = (steam_time / 1000000) - 62135596800
-    microseconds = steam_time % 1000000
+def py_time(time):
+    unix = (time / 1000000) - 62135596800
+    microseconds = time % 1000000
     return datetime.datetime.fromtimestamp(unix) - datetime.timedelta(0, 0, microseconds)
 
-def steam_time(py_time):
-    return (time.mktime(py_time) + 62135596800) * 1000000 
+def steam_time(time):
+    return (time.mktime(time) + 62135596800) * 1000000
