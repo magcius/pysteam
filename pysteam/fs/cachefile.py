@@ -167,15 +167,12 @@ class CacheFile(object):
         manifest_entry = self.manifest.manifest_entries[0]
 
         # Fill in root.
-        self.root = DirectoryFolder(self)
+        self.root = DirectoryFolder(self, package=package)
         self.root.index = 0
-        self.root.package = package
-        self.root.name = ""
         self.root._manifest_entry = manifest_entry
         self._read_directory_table(self.root)
 
     def _read_directory_table(self, folder):
-
         i = folder._manifest_entry.child_index
 
         while i != sys.maxint and i != 0:
@@ -183,16 +180,12 @@ class CacheFile(object):
             is_file = manifest_entry.directory_flags & CacheFileManifestEntry.FLAG_IS_FILE != 0
 
             # Create our entry.
-            if is_file:
-                entry = DirectoryFile(folder)
-            else:
-                entry = DirectoryFolder(folder)
+            klass = DirectoryFile if is_file else DirectoryFolder
+            entry = klass(folder, manifest_entry.name, self)
 
-            entry.package = self
             entry._manifest_entry = manifest_entry
             entry.item_size = manifest_entry.item_size
             entry.index = manifest_entry.index
-            entry.name = manifest_entry.name
 
             folder.items[entry.name] = entry
 

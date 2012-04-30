@@ -2,9 +2,10 @@
 import os
 
 class DirectoryFile(object):
-    def __init__(self, folder):
+    def __init__(self, folder, name="", package=None):
         self.folder = folder
-        self.name = ""
+        self.name = name
+        self.package = package
 
     def size(self):
         return self.package._size(self)
@@ -30,10 +31,11 @@ class DirectoryFile(object):
         return os.path.join(self.folder.sys_path(), self.name)
 
 class DirectoryFolder(object):
-    def __init__(self, owner):
-        self.owner = owner
+    def __init__(self, parent, name="", package=None):
+        self.owner = parent
+        self.name = name
+        self.package = package
         self.items = {}
-        self.name = ""
 
     def __getitem__(self, name):
         return self.items[name]
@@ -91,27 +93,19 @@ class FilesystemPackage(object):
         self.root = DirectoryFolder(self)
         self.root.package = self
         self.root.name = rootpath
-        map = {rootpath: self.root}
+        fs_map = {rootpath: self.root}
 
         for path, dirs, files in gen:
-            owner_key, name = os.path.split(path)
-            if owner_key in map:
-                owner = map[owner_key]
-            else:
-                owner = self.root
+            parent_path, name = os.path.split(path)
+            parent = fs_map[parent_path]
 
-            entry = DirectoryFolder(owner)
-            entry.package = self
-            entry.name = name
+            folder = DirectoryFolder(parent, name, self)
 
-            owner.items[name] = entry
-            map[path] = entry
+            parent.items[name] = folder
+            fs_map[path] = folder
 
             for filename in files:
-                file = DirectoryFile(entry)
-                file.name = filename
-                file.package = self
-                entry.items[filename] = file
+                folder.items[filename] = DirectoryFile(folder, filename, self)
 
     def _join_path(self, *args):
         return os.path.join(*args)
