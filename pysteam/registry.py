@@ -14,9 +14,6 @@ class Registry(object):
         except KeyError:
             self.root.read(blob[0])
 
-    def find_item(self, name):
-        return self.root.find_item(name)
-
     def __getattr__(self, name):
         return self.root.__getattr__(name)
     def __getitem__(self, i):
@@ -47,15 +44,11 @@ class RegistryKey(object):
             value.read(node)
             self.items[value.name] = value
 
-    def find_item(self, name):
-        pieces = name.split("/")
-        piece = pieces[0]
-        return self.items[piece].find_item("/".join(pieces[1:]))
-
     def __getattr__(self, name):
         return self.items[name]
     def __getitem__(self, i):
-        return self.find_item(i)
+        return self.items[i]
+
     def __len__(self):
         return len(self.items)
     def __repr__(self):
@@ -73,11 +66,7 @@ class RegistryValue(object):
         self.owner = owner
         self.base_type = 0
 
-    def find_item(self, name):
-        return self
-
     def read(self, blob):
-
         def clean_str(s):
             if "\0" in s:
                 return s[:s.find("\0")]
