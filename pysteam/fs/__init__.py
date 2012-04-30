@@ -6,9 +6,6 @@ class DirectoryFile(object):
         self.folder = folder
         self.name = ""
 
-    def attributes(self):
-        return self.package._attributes(self)
-
     def size(self):
         return self.package._size(self)
 
@@ -46,9 +43,6 @@ class DirectoryFolder(object):
 
     def __len__(self):
         return len(self.items)
-
-    def attributes(self):
-        return self.package._attributes(self)
 
     def size(self):
         return sum(i.size() for i in self.items)
@@ -127,9 +121,6 @@ class FilesystemPackage(object):
 
     def _open_file(self, file, mode):
         return open(file.find_path(), mode)
-
-    def _attributes(self, file):
-        return os.stat(file.find_path()).st_mode
 
     def _extract_file(self, *a, **b):
         # Not used.
