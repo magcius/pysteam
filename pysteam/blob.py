@@ -119,13 +119,6 @@ class BlobNode(object):
             return iter(self.child)
         return iter(self.data)
 
-    @property
-    def smart_key(self):
-        try:
-            return str(struct.unpack("<l", self.key)[0])
-        except struct.error:
-            return self.key
-
     def __str__(self):
         s = ["<"]
         if self.child:
