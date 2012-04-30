@@ -12,7 +12,6 @@ class Blob(object):
 
     def __init__(self):
         self.children = {}
-        self.ordered_children = []
         self.padding = 0
 
     def parse(self, stream):
@@ -26,7 +25,6 @@ class Blob(object):
                 node = BlobNode()
                 node.parse(stream)
                 self.children[node.key] = node
-                self.ordered_children.append(node)
 
             stream.seek(self.padding, os.SEEK_CUR)
 
@@ -44,7 +42,7 @@ class Blob(object):
         mode = Blob.COMPRESSED_MAGIC if compress else Blob.MAGIC
         data = StringIO()
 
-        for node in self.ordered_children:
+        for node in self.children.itervalues():
             data.write(node.serialize())
 
         if compress:
@@ -58,7 +56,7 @@ class Blob(object):
         return len(self.children)
 
     def __iter__(self):
-        return iter(self.ordered_children)
+        return self.children.itervalues()
 
     def __getitem__(self, key):
         if isinstance(key, int):
