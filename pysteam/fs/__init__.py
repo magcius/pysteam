@@ -177,7 +177,7 @@ class DirectoryFolder(object):
                     magic = self.items[name[0]]
 
                 # Loop through everything but the first and last, these are
-                # the head and tail, respectively. 
+                # the head and tail, respectively.
                 for piece in name[1:-1]:
                     # Make more magic nodes.
                     magic.map.setdefault(piece, MagicNode())

@@ -122,7 +122,7 @@ class ApplicationLaunchOptionRecord(object):
         self.icon_index = node[3].data
         self.no_desktop_shortcut = bytes_as_bool(node[4].data)
         self.no_start_menu_shortcut = bytes_as_bool(node[5].data)
-        self.long_running_unattended = bytes_as_bool(node[6].data)    
+        self.long_running_unattended = bytes_as_bool(node[6].data)
 
 class ApplicationVersionRecord(object):
     def __str__(self):
@@ -163,7 +163,7 @@ class ApplicationFilesystemRecord(object):
     def __str__(self):
         return "%s: Cache import: %s" % (unicode(self.owner), self.get_mount_name())
 
-    def parse(self, node):        
+    def parse(self, node):
         self.app_id = struct.unpack("<l", node[1].data)[0]
         self.mount_name = node[2].data
         self.is_optional = bytes_as_bool(node[3].data)
