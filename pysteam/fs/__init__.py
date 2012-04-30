@@ -2,7 +2,6 @@
 import os
 
 class DirectoryFile(object):
-
     def __init__(self, folder):
         self.folder = folder
         self.name = ""
@@ -34,10 +33,6 @@ class DirectoryFile(object):
         return os.path.join(self.folder.sys_path(), self.name)
 
 class DirectoryFolder(object):
-
-    def __repr__(self):
-        return self.items.__repr__()
-
     def __init__(self, owner):
         self.owner = owner
         self.items = {}
