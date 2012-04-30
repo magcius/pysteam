@@ -15,16 +15,18 @@ class Registry(object):
             self.root.read(blob[0])
 
     def __getitem__(self, i):
-        return self.root.__getitem__(i)
+        return self.root[i]
+
     def __len__(self):
-        return self.root.__len__()
+        return len(self.root)
+
     def __repr__(self):
-        return self.root.__repr__()
+        return repr(self.root)
+
     def __iter__(self):
-        return self.root.__iter__()
+        return iter(self.root)
 
 class RegistryKey(object):
-
     def __init__(self, registry, owner):
         self.owner = owner
         self.registry = registry
@@ -47,8 +49,10 @@ class RegistryKey(object):
 
     def __len__(self):
         return len(self.items)
+
     def __repr__(self):
         return repr(self.items)
+
     def __iter__(self):
         return self.items.itervalues()
 
@@ -82,7 +86,8 @@ class RegistryValue(object):
                 self.data = blob[2].data
 
     def __str__(self):
-        return self.__repr__()
+        return repr(self)
+
     def __repr__(self):
         if self.type == RegistryValue.TYPE_STRING:
             return str("'" + self.data + "'")
