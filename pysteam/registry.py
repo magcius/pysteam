@@ -1,5 +1,5 @@
 
-from blob import Blob
+from pysteam.blob import Blob
 import struct
 
 class Registry(object):
