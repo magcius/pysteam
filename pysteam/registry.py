@@ -65,6 +65,8 @@ class RegistryValue(object):
     def __init__(self, owner):
         self.owner = owner
         self.base_type = 0
+        self.data = None
+        self.child = None
 
     def read(self, blob):
         def clean_str(s):
@@ -79,23 +81,23 @@ class RegistryValue(object):
             self.data = clean_str(blob[2].data)
         elif self.type == RegistryValue.TYPE_DWORD:
             self.data = struct.unpack("<L", blob[2].data[:4])
-        else: # elif self.type == RegistryValue.TYPE_BINARY:
-            if blob[2].child is not None:
-                self.data = blob[2].child
-            else:
-                self.data = blob[2].data
+        elif self.type == RegistryValue.TYPE_BINARY:
+            self.child = blob[2].child
+            self.data = blob[2].data
+        else:
+            assert False, "should not be reached"
 
     def __str__(self):
         return repr(self)
 
     def __repr__(self):
         if self.type == RegistryValue.TYPE_STRING:
-            return str("'" + self.data + "'")
+            return "%r" % (self.data,)
         elif self.type == RegistryValue.TYPE_DWORD:
-            return str(self.data)
+            return "%s" % (self.data,)
         elif self.type == RegistryValue.TYPE_BINARY:
-            if type(self.data) is str:
-                return str("".join(["\\x%s" % hex(ord(c))[2:] for c in self.data])) + "'"
+            if self.child is not None:
+                return repr(self.child)
             else:
                 return repr(self.data)
 
