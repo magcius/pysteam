@@ -302,21 +302,14 @@ class CacheFile(object):
         # Use file.open instead of _open_file as we may be parsing an NCF
         return self.root[filename].open(mode)
 
-    # Magic/Special Methods
-
-    @raise_parse_error
     def __len__(self):
         return len(self.root)
 
-    @raise_parse_error
     def __iter__(self):
-        # for i in gcf:
-        return self.root.__iter__()
+        return iter(self.root)
 
-    @raise_parse_error
     def __getitem__(self, name):
-        # gcf["folder1"]["folder2"]["file.txt"]
-        return self.root.__getitem__(name)
+        return self.root[name]
 
 class CacheFileHeader(object):
 
