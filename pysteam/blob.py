@@ -94,10 +94,10 @@ class BlobNode(object):
             return len(self.child)
         return len(self.data)
 
-    def __getitem__(self, value):
+    def __getitem__(self, idx):
         if self.child is not None:
-            return self.child.__getitem__(value)
-        raise IndexError(value)
+            return self.child[idx]
+        raise IndexError(idx)
 
     def __getattr__(self, value):
         if self.child is not None:
