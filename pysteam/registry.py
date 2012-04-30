@@ -14,8 +14,6 @@ class Registry(object):
         except KeyError:
             self.root.read(blob[0])
 
-    def __getattr__(self, name):
-        return self.root.__getattr__(name)
     def __getitem__(self, i):
         return self.root.__getitem__(i)
     def __len__(self):
@@ -44,8 +42,6 @@ class RegistryKey(object):
             value.read(node)
             self.items[value.name] = value
 
-    def __getattr__(self, name):
-        return self.items[name]
     def __getitem__(self, i):
         return self.items[i]
 
