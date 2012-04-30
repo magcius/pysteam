@@ -262,14 +262,8 @@ class CacheFile(object):
 
     # Internal methods.
 
-    def _path_sep(self):
-        return STEAM_TERMINATOR
-
     def _join_path(self, *args):
         return STEAM_TERMINATOR.join(args)
-
-    def _split_path(self, name):
-        return name.split(STEAM_TERMINATOR)
 
     @raise_parse_error
     @raise_ncf_error
@@ -341,7 +335,7 @@ class CacheFile(object):
 
     def open(self, filename, mode):
         # Use file.open instead of _open_file as we may be parsing an NCF
-        return self.root.find_item(filename).open(mode)
+        return self.root[filename].open(mode)
 
     # Magic/Special Methods
 

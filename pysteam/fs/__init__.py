@@ -26,9 +26,6 @@ class DirectoryFile(object):
     def is_folder(self):
         return False
 
-    def find_item(self, name):
-        return self
-
     def path(self):
         # Recursively find our path from the bottom up.
         return self.package._join_path(self.folder.path(), self.name)
@@ -47,12 +44,7 @@ class DirectoryFolder(object):
         self.name = ""
 
     def __getitem__(self, name):
-        try:
-            # folder1["folder2"]["file.txt"]
-            return self.items[name]
-        except KeyError:
-            # folder1["folder2\\file.txt"]
-            return self.find_item(name)
+        return self.items[name]
 
     def __iter__(self):
         return self.items.itervalues()
@@ -88,24 +80,6 @@ class DirectoryFolder(object):
             return os.path.join(self.owner.sys_path(), self.name)
         except AttributeError:
             return self.name
-
-
-    def find_item(self, name):
-
-        if len(filter(lambda x: len(x) > 0, self.package._split_path(name))) < 1:
-            return self
-
-        # If we start with the path separator, remove it.
-        if str(name).startswith(self.package._path_sep()):
-            name = str(name)[len(self.package._path_sep()):]
-
-        name = self.package._split_path(name)
-
-        if name[0] not in self.items:
-            raise KeyError, "DirectoryFolder '%s' does not have file/folder '%s'" % (self.path(), name[0])
-
-        # Yay tail-recursion. Go CAR and CDR!
-        return self.items[name[0]].find_item(self.package._join_path(*name[1:]))
 
     def all_files(self):
         # Simple recursive function to get all files in this folder and its subfolders.
@@ -150,14 +124,8 @@ class FilesystemPackage(object):
                 file.package = self
                 entry.items[filename] = file
 
-    def _path_sep(self):
-        return os.path.sep
-
     def _join_path(self, *args):
         return os.path.join(*args)
-
-    def _split_path(self, name):
-        return name.split(os.path.sep)
 
     def _size(self, file):
         return os.path.getsize(file.find_path())
