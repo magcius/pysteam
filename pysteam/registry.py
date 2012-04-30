@@ -7,12 +7,12 @@ class Registry(object):
     def __init__(self):
         self.root = None
 
-    def read(self, blob):
+    def parse(self, blob):
         self.root = RegistryKey(self, None)
         try:
-            self.root.read(blob["TopKey"])
+            self.root.parse(blob["TopKey"])
         except KeyError:
-            self.root.read(blob[0])
+            self.root.parse(blob[0])
 
     def __getitem__(self, i):
         return self.root[i]
@@ -32,16 +32,16 @@ class RegistryKey(object):
         self.registry = registry
         self.items = {}
 
-    def read(self, blob):
+    def parse(self, blob):
         self.name = blob.key
         for node in blob[1]: # Subkeys
             subkey = RegistryKey(self.registry, self)
-            subkey.read(node)
+            subkey.parse(node)
             self.items[subkey.name] = subkey
 
         for node in blob[2]: # Values
             value = RegistryValue(self)
-            value.read(node)
+            value.parse(node)
             self.items[value.name] = value
 
     def __getitem__(self, i):
@@ -68,7 +68,7 @@ class RegistryValue(object):
         self.data = None
         self.child = None
 
-    def read(self, blob):
+    def parse(self, blob):
         def clean_str(s):
             if "\0" in s:
                 return s[:s.find("\0")]
@@ -104,6 +104,6 @@ class RegistryValue(object):
 if __name__ == "__main__":
     handle = open("ClientRegistry.blob", "rb")
     blob = Blob()
-    blob.read(handle)
+    blob.parse(handle)
     registry = Registry()
-    registry.read(blob)
+    registry.parse(blob)
