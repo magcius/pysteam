@@ -13,7 +13,7 @@ class Registry(object):
             raise ValueError, "There are no keys in this registry!"
         try:
             self.root.read(blob["TopKey"])
-        except Exception:
+        except KeyError:
             self.root.read(blob[0])
 
     def find_item(self, name):
