@@ -62,8 +62,6 @@ class CacheFile(object):
         except AttributeError:
             pass
 
-        print "Parsing"
-
         # Header
         self.stream = stream
         self.header = CacheFileHeader(self)
@@ -98,7 +96,6 @@ class CacheFile(object):
             self.data_header.parse(stream.read(24)) # size of BlockDataHeader (6 longs)
             self.data_header.validate()
 
-        print "Reading Directory Table"
         self.is_parsed = True
         self._read_directory()
         return self
@@ -269,10 +266,6 @@ class CacheFile(object):
     @raise_parse_error
     @raise_ncf_error
     def _extract_file(self, file, where, keep_folder_structure):
-        global MAX_FILENAME
-        output = "\rExtracting %r..." % (file.sys_path(),)
-        MAX_FILENAME = max(len(output), MAX_FILENAME)
-        print output, " "*(MAX_FILENAME-len(output)),
         if keep_folder_structure:
             fsHandle = open(os.path.join(where, file.sys_path()), "wb")
         else:
