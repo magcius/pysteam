@@ -9,8 +9,6 @@ class Registry(object):
 
     def read(self, blob):
         self.root = RegistryKey(self, None)
-        if len(blob) <= 0:
-            raise ValueError, "There are no keys in this registry!"
         try:
             self.root.read(blob["TopKey"])
         except KeyError:
