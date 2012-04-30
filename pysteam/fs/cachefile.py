@@ -49,7 +49,7 @@ class CacheFile(object):
         self.data_header = None
         self.complete_total = 0
         self.complete_available = 0
-        self.ncf_folder_pattern = "common/{NAME}"
+        self.ncf_folder_pattern = "common/%(name)s"
 
     def __del__(self):
         del self.is_parsed
@@ -152,12 +152,8 @@ class CacheFile(object):
         if self.is_ncf():
             # Make NCF files "readable" by a configurable folder much like Steam's "common" folder
 
-            path = self.ncf_folder_pattern.replace("/", os.sep)
-            if ("{NAME}" in path or "{FILE}" in path) and not hasattr(self, "filename"):
-                raise ValueError, "NCF folder path has {NAME} or {FILE} but filename couldn't be figured out. Please set manually."
-
-            path = path.replace("{NAME}", ".".join(self.filename.split(".")[:-1]))
-            path = path.replace("{FILE}", self.filename)
+            name = ".".join(self.filename.split(".")[:-1])
+            path = self.ncf_folder_pattern % (dict(name=name, file=self.filename))
 
             package = FilesystemPackage()
             package.parse(path)
