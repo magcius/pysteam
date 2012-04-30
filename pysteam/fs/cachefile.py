@@ -1,5 +1,6 @@
 
-import struct, sys, os
+import struct
+import os
 
 from pysteam.fs import DirectoryFolder, DirectoryFile, FilesystemPackage
 from math import ceil
@@ -175,7 +176,7 @@ class CacheFile(object):
     def _read_directory_table(self, folder):
         i = folder._manifest_entry.child_index
 
-        while i != sys.maxint and i != 0:
+        while i != 0xFFFFFFFF and i != 0:
             manifest_entry = self.manifest.manifest_entries[i]
             is_file = manifest_entry.directory_flags & CacheFileManifestEntry.FLAG_IS_FILE != 0
 
