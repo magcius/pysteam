@@ -495,7 +495,10 @@ class CacheFileBlockAllocationTableEntry(object):
         self.manifest_index = 0
 
     def _get_sector_iterator(self):
-        return CacheFileSectorIterator(self.first_sector)
+        sector = self.first_sector
+        while sector is not None:
+            yield sector
+            sector = sector.next_sector
 
     def _get_next_block(self):
         try:
@@ -733,8 +736,11 @@ class CacheFileManifestEntry(object):
         name_end = self.owner.filename_table[self.name_offset:].find("\0")
         self.owner.filename_table[self.name_offset:name_end] = value
 
-    def _get_blocks_iter(self):
-        return CacheFileBlockIterator(self._get_first_block())
+    def _get_block_iterator(self):
+        block = self.first_block
+        while block is not None:
+            yield block
+            block = block.next_block
 
     def _get_first_block(self):
         if len(self.owner.owner.blocks.blocks) == self.owner.manifest_map_entries[self.index]:
@@ -753,7 +759,7 @@ class CacheFileManifestEntry(object):
          self.next_index,
          self.child_index) = struct.unpack("<7L", data)
 
-    blocks = property(_get_blocks_iter)
+    blocks = property(_get_block_iterator)
     first_block = property(_get_first_block, _set_first_block)
     name = property(_get_name, _set_name)
 
@@ -856,26 +862,6 @@ class CacheFileSector(object):
         return self.cache.stream.read(size)
 
     next_sector = property(_get_next_sector, _set_next_sector)
-
-class CacheFileSectorIterator(object):
-
-    def __init__(self, first_sector):
-        self.current_sector = first_sector
-
-    def __iter__(self):
-        while self.current_sector is not None:
-            yield self.current_sector
-            self.current_sector = self.current_sector.next_sector
-
-class CacheFileBlockIterator(object):
-
-    def __init__(self, start_block):
-        self.current_block = start_block
-
-    def __iter__(self):
-        while self.current_block is not None:
-            yield self.current_block
-            self.current_block = self.current_block.next_block
 
 class GCFFileStream(object):
 
