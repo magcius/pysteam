@@ -1,25 +1,6 @@
 
 import os
 
-class MagicNode(object):
-    def __init__(self, file_map=None):
-        self.map = file_map or {}
-
-    def __getattr__(self, name):
-        return self.map[name]
-
-    def __getitem__(self, name):
-        return self.map[name]
-
-    def __repr__(self):
-        return self.map.__repr__()
-
-    def is_folder(self):
-        return False
-
-    def is_file(self):
-        return False
-
 class DirectoryFile(object):
 
     def __init__(self, folder):
@@ -65,14 +46,6 @@ class DirectoryFolder(object):
         self.items = {}
         self.name = ""
 
-    def __getattr__(self, name):
-        # folder1.folder2.file.txt
-        # folder1.folder2.file(dot_replacement)txt
-        try:
-            return self.items[name]
-        except KeyError:
-            raise AttributeError, "'DirectoryFolder' object has no attribute (could be file/folder) '%s'" % name
-
     def __getitem__(self, name):
         try:
             # folder1["folder2"]["file.txt"]
@@ -82,7 +55,7 @@ class DirectoryFolder(object):
             return self.find_item(name)
 
     def __iter__(self):
-        return self.items_nomagic.itervalues()
+        return self.items.itervalues()
 
     def __len__(self):
         return len(self.items)
@@ -147,59 +120,7 @@ class DirectoryFolder(object):
 
         return files
 
-    def build_split_map(self):
-
-        self.dot_replacement = self.package.dot_replacement
-        self.items_nomagic = self.items.copy()
-
-        for key, value in self.items_nomagic.iteritems():
-
-            # Special case for "." as dot_replacement, as
-            # "." has a special use in Python.
-            if "." in key and self.dot_replacement == ".":
-
-                # Split "readme.txt.backup.foo"
-                name = key.split(".")
-
-                # Set our first part.
-                # Use setdefault in case there is another
-                # file, e.g "readme.gz"
-                # Put it into our items map.
-
-                # If we already have a folder with the same name as a file part, then
-                # make a MagicNode and make all items in that folder point to their
-                # corresponding items in that folder.
-                if name[0] in self.items and self.items[name[0]].is_folder():
-                    folder = self.items[name[0]]
-                    magic = self.items[name[0]] = MagicNode(folder.items.copy())
-                else:
-                    self.items.setdefault(name[0], MagicNode())
-                    magic = self.items[name[0]]
-
-                # Loop through everything but the first and last, these are
-                # the head and tail, respectively.
-                for piece in name[1:-1]:
-                    # Make more magic nodes.
-                    magic.map.setdefault(piece, MagicNode())
-                    magic = magic[piece]
-
-                #if name[-1] in magic:
-                #    raise ValueError, "Two files have the same name."
-
-                # And make a final node with our file object.
-                magic.map[name[-1]] = value
-
-            elif "." in key: # and self.dot_replacement != "."
-                self.items[key.replace(".", self.dot_replacement)] = value
-
-            try:
-                value.build_split_map()
-            except AttributeError: pass
-
 class FilesystemPackage(object):
-
-    def __init__(self):
-        self.dot_replacement = "."
 
     def parse(self, dirname):
         rootpath = os.path.abspath(dirname)
@@ -228,8 +149,6 @@ class FilesystemPackage(object):
                 file.name = filename
                 file.package = self
                 entry.items[filename] = file
-
-        self.root.build_split_map()
 
     def _path_sep(self):
         return os.path.sep

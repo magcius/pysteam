@@ -48,7 +48,6 @@ class CacheFile(object):
         self.data_header = None
         self.complete_total = 0
         self.complete_available = 0
-        self.dot_replacement = "."
         self.ncf_folder_pattern = "common/{NAME}"
 
     def __del__(self):
@@ -160,7 +159,6 @@ class CacheFile(object):
             path = path.replace("{FILE}", self.filename)
 
             package = FilesystemPackage()
-            package.dot_replacement = self.dot_replacement
             package.parse(path)
 
         elif self.is_gcf():
@@ -175,8 +173,6 @@ class CacheFile(object):
         self.root.name = ""
         self.root._manifest_entry = manifest_entry
         self._read_directory_table(self.root)
-        print "Building Split Map"
-        self.root.build_split_map()
 
     def _read_directory_table(self, folder):
 
@@ -296,7 +292,7 @@ class CacheFile(object):
                 pass
 
         # Loop over the folder and extract files and folders (if recursive)
-        for key, entry in folder.items_nomagic.iteritems():
+        for entry in folder:
             # Don't bother recursing (and creating the folder) if no files are left after the filter.
             if entry.is_folder() and recursive and ((item_filter is None) or (len([x for x in entry.all_files() if item_filter(x)]) > 0)):
                 self._extract_folder(entry, where, True, keep_folder_structure, item_filter)
@@ -357,11 +353,6 @@ class CacheFile(object):
     def __iter__(self):
         # for i in gcf:
         return self.root.__iter__()
-
-    @raise_parse_error
-    def __getattr__(self, name):
-        # gcf.folder1.folder2.file.txt
-        return self.root.__getattr__(name)
 
     @raise_parse_error
     def __getitem__(self, name):
